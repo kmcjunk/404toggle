@@ -215,6 +215,7 @@ parser.add_argument('-r', '--region', dest='region',
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    args.region = args.region.upper()
     format = "%(asctime)s: %(message)s"
     logging.basicConfig(format=format,
                         level=logging.INFO,
