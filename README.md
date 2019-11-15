@@ -36,7 +36,7 @@ The script will log to 404toggle.log
 16:47:45: Main: Containers toggled - 15
 ```
 
-## Known issues
+### Known issues
 There is currently a race condition if utilizing too many threads. This will cause the consumers to start dying out before they get their workload. You will know if you are being affected by this if your threadcount (tc=$n) starts lowering while there are still objects in the queue. It should only occur when utilizing 32+ CPUs
 
 Current workaround:  
