@@ -218,7 +218,7 @@ if __name__ == "__main__":
                         level=logging.INFO,
                         datefmt="%H:%M:%S",
                         handlers=[
-                                logging.FileHandler("404error.log"),
+                                logging.FileHandler("404toggle.log"),
                                 logging.StreamHandler()
                                 ]
                         )
