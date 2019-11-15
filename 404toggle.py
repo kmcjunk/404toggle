@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright 2019 Kevin McJunkin
+# License: Apache
 
 import concurrent.futures
 import logging
