@@ -35,8 +35,9 @@ class KAuth:
             "auth": {
                 "RAX-KSKEY:apiKeyCredentials": {
                     "username": self.username,
-                    "apiKey": self.apikey}
-                    }
+                    "apiKey": self.apikey
+                            }
+                        }
                     }
         try:
             r = requests.post(endpoint,
@@ -54,8 +55,8 @@ class KAuth:
                 return token, service_url
 
         except KeyError:
-            logging.info('Main: Identity did not return a token',
-                         'Exiting.')
+            logging.info('Auth: Identity did not return a token\n',
+                         f'Status code: {r.status_code}')
             exit(1)
 
         return token
@@ -80,10 +81,10 @@ class KFile:
             elif r.status_code == 202:
                 pass
             else:
-                logging.info(f'Consumer: Error Disabling container {container}'
-                             ' check 404error.log for details')
+                logging.info(f'Files: Error Disabling container {container}\n'
+                             f'Status code: {r.status_code}')
         except:
-            print(f'Exception on {container}')
+            logging.info(f'Exception on {container}')
 
     def enable_container(self, container):
         endpoint = f'{self.file_url}/{container}'
@@ -98,14 +99,14 @@ class KFile:
             elif r.status_code == 202:
                 pass
             else:
-                logging.info(f'Consumer: Error Enabling container {container}.'
+                logging.info(f'Files: Error Enabling container {container}\n'
                              f'Status code: {r.status_code}')
-                logging.info(r.status_code)
         except:
-            print(f'Exception on {container}')
+            logging.info(f'Exception on {container}')
 
 
-# Doin things
+# Grab all CDN enabled containers, it's ugly cuz it supports pagination
+# ...but with a producer!
 def get_cdn(marker=None):
     headers = {'X-Auth-Token': token}
     endpoint = file_url + '?format=json'
@@ -129,6 +130,8 @@ def get_cdn(marker=None):
     return cdn_container_list, marker
 
 
+# Consumer checks if containers are CDN enabled
+# if so - add them to the list to toggle
 def check_header(container):
     headers = {'X-Auth-Token': token}
     endpoint = file_url + '/' + container
@@ -145,6 +148,9 @@ def check_header(container):
         pass
 
 
+# Determine number of threads to spin up. If under containers 100
+# spin up a thread for each container. If under 100, set to 90
+# This help avoids a race condition that I'm too dumb to fix
 def get_threads():
     thread_list = []
     headers = {'X-Auth-Token': token}
@@ -157,10 +163,10 @@ def get_threads():
         workers = 90
     if len(thread_list) < 100:
         workers = len(thread_list)
-    logging.info(f'Main: Spinning up {workers} thread(s)')
     return workers
 
 
+# Consumer toggles container & logs it to a list
 def do_stuff(cdn_container, queue):
     if cdn_container:
         files.disable_container(cdn_container)
@@ -171,9 +177,9 @@ def do_stuff(cdn_container, queue):
                      f' Toggling CDN status for {cdn_container}')
 
 
-"""1st issue
-    A) producer/consumer both blocking queue
-    B) Attempting to give priority to producer b failin"""
+    # 1st issue
+    # A) producer/consumer both blocking queue
+    # B) Attempting to give priority to producer b failin
 def producer(queue, event):
     """Grab all CDN containers that have ever existed ever"""
     marker = None
@@ -183,21 +189,24 @@ def producer(queue, event):
                      "containers added to queue - %s",
                      len(message))
         for i in message:
-            queue.put(i, block=False, timeout=150)
+            queue.put(i,
+                      block=False,
+                      timeout=150)
         if marker:
-            logging.info(f'Producer has marker: {marker}')
+            logging.info(f'Producer: received marker: {marker}')
             logging.info(f'Producer: Queue size: {queue.qsize()}')
     logging.info("Producer: received event. Exiting")
 
 
-"""2nd issue, prolly race condition:
-    consumers are receiving event() instead of staying alive
-    when producer lags behind"""
+    # 2nd issue, prolly race condition:
+    # consumers are receiving event() instead of staying alive
+    # when producer lags behind
 def consumer(queue, event):
     """Check if they are currently CDN enabled
        via headers. If true: toggle container"""
     while not event.is_set() or not queue.empty():
-        message = queue.get(block=True, timeout=20)
+        message = queue.get(block=True,
+                            timeout=20)
         cdn_container = check_header(message)
         do_stuff(cdn_container, queue)
 
@@ -238,6 +247,7 @@ if __name__ == "__main__":
     flipped_list = []
     logging.info('Main: Determining number of threads to create')
     n_workers = get_threads()
+    logging.info(f'Main: Spinning up {n_workers} thread(s)')
     "Uncomment line below to set number of workers, yolo"
     # n_workers = 100
     """Start threads"""
